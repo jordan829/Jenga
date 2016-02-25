@@ -16,7 +16,40 @@ public class WidgetInteraction : MonoBehaviour {
 			startAction = GetComponent<Interact> ().interact;
 
 			if (startAction) {
-
+				// do the actions here (switch case is fine)
+				switch(tag) {
+					case "PlayerToggle":
+					
+						break;
+					case "UpLayerNum":
+					
+						break;
+					case "DownLayerNum":
+					
+						break;
+					case "ExitToWindows":
+					
+						break;
+					case "StartGame":
+					
+						break;
+					case "Reset":
+					
+						break;
+					case "MainMenu":
+					
+						break;
+					case "Undo":
+					
+						break;
+					case "Replay":
+					
+						break;
+					default:
+						//do nothing
+				}
+				
+				// reset startAction and interact for the widget
 			}
 		}
 	}
