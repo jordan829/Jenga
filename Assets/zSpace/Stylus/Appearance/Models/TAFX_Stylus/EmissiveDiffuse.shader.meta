@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: a279e5aa0296b9248bfe7957486994d0
+labels:
+- shader
+- shaders
+- surface
+- parallax
+- occlusion
+- spec
+- rim
+- lighitng
+- advanced
+- emissive
+ShaderImporter:
+  defaultTextures: []
+  userData: 
