@@ -8,8 +8,8 @@ public class TowerBuild : MonoBehaviour {
 	public Transform blockLayer;
 	public static List<Transform> blkLayers;
 	public static bool setUpDone;
-	float startTime;
-	int i;
+	static float startTime;
+	static int i;
     float timePerLayer;
 
 	// Use this for initialization
@@ -33,8 +33,10 @@ public class TowerBuild : MonoBehaviour {
 				i++;
 			}
 		} 
-		else {
+		else if(!setUpDone) {
 			setUpDone = true;
+			GameState.nextTurn = true;
+			GameState.turnsTaken--;
 		}
 
 
@@ -50,7 +52,7 @@ public class TowerBuild : MonoBehaviour {
 		}
 	}
 
-	void restartTower() {
+	public static void restartTower() {
 		for (int x = 0; x < blkLayers.Count; x++) {
 			Destroy (blkLayers [x].gameObject);
 		}

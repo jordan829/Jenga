@@ -23,17 +23,20 @@ public class BlockInteraction : MonoBehaviour {
 
 			if (startAction) {
 				//lastParent = transform.parent;
-				for (int i = 0; i < lastParent.childCount; i++) {
+				/*for (int i = 0; i < lastParent.childCount; i++) {
 					if (lastParent.GetChild (i).GetInstanceID () == transform.GetInstanceID ()) {
 						missIndex = i;
 					}
-				}
+				}*/
+				missIndex = transform.GetSiblingIndex();
 				GetComponent<Rigidbody> ().useGravity = false;
 				transform.SetParent (GameObject.FindGameObjectWithTag ("Pen").transform);
+				GetComponent<Rigidbody> ().isKinematic = false;
 			} 
 			else {
 				GetComponent<Rigidbody> ().useGravity = true;
 				transform.SetParent (lastParent);
+				transform.SetSiblingIndex(missIndex);
 			}
 		}
 

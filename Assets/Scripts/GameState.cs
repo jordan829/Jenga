@@ -8,8 +8,14 @@ public class GameState : MonoBehaviour {
 	static int currentPlayer;
     public static bool gameOver;
 
-	static List<Vector3> perFramePosition;					// placeholder for block positions in each frame
-	static List<Quaternion> perFrameQuaternion;			// placeholder for block rotations in each frame
+	static List<Vector3> undoTowerPos;					
+	static List<Quaternion> undoTowerRot;			
+
+	static List<Vector3> tempPos = new List<Vector3>();					
+	static List<Quaternion> tempRot = new List<Quaternion>();			
+
+	static List<Vector3> redoTowerPos;					
+	static List<Quaternion> redoTowerRot;			
 
 	static List<List<Vector3>> lastTurnPositions;			// holds positions of all blocks in every frame for the last turn
 	static List<List<Vector3>> currentTurnPositions;		// holds positions of all blocks in every frame for the current turn
@@ -18,6 +24,10 @@ public class GameState : MonoBehaviour {
 
 	public static bool replayOn;
 	static int replayFrameNum;
+	public static bool nextTurn;
+	public static int turnsTaken;
+	static bool recentlyUndo;
+	static bool recentlyRedo;
 
     // Use this for initialization
     void Start () {
@@ -25,15 +35,11 @@ public class GameState : MonoBehaviour {
 		currentPlayer = 1;
         gameOver = false;
 		replayOn = false;
+		nextTurn = false;
 		replayFrameNum = 0;
-
-		perFramePosition = new List<Vector3>();
-		perFrameQuaternion = new List<Quaternion> ();
-
-		lastTurnPositions = new List<List<Vector3>> ();
-		currentTurnPositions = new List<List<Vector3>> ();
-		lastTurnQuaternions = new List<List<Quaternion>> ();
-		currentTurnQuaternions = new List<List<Quaternion>> ();
+		turnsTaken = 0;
+		recentlyUndo = false;
+		recentlyRedo = false;
 	}
 	
 	// Update is called once per frame
@@ -41,48 +47,68 @@ public class GameState : MonoBehaviour {
 
 		if (TowerBuild.setUpDone) {
 			// check if the player turn has changed
-			if (currentPlayer != playerTurn) {
+			if (currentPlayer != playerTurn || nextTurn) {
 				currentPlayer = playerTurn;
-				// reset/save the list of lists
-				lastTurnPositions = currentTurnPositions;
-				lastTurnQuaternions = currentTurnQuaternions;
-				currentTurnPositions = new List<List<Vector3>> ();
-				currentTurnQuaternions = new List<List<Quaternion>> ();
-			}
+				nextTurn = false;
+				if (gameOver)
+					turnsTaken--;
+				turnsTaken++;
+				recentlyUndo = false;
+				recentlyRedo = false;
 
-			List<Transform> tower = TowerBuild.blkLayers;
+				// reset redo undo lists
+				redoTowerPos = new List<Vector3>();
+				redoTowerRot = new List<Quaternion> ();
+				undoTowerPos = tempPos;
+				undoTowerRot = tempRot;
+				tempPos = new List<Vector3> ();
+				tempRot = new List<Quaternion> ();
 
-			for (int i = 0; i < tower.Count; i++) {
-				// fill in the perFrame buffer
-				for (int j = 0; j < tower[i].childCount; j++) {
-					Transform currBlock = tower [i].GetChild (j);
-					if (tower [i].childCount < 3) {
-						// retrieve the held block
-						Stylus5 stylusGO = (Stylus5)FindObjectOfType(typeof(Stylus5));
-						if (stylusGO.collidingWith.Count == 1) {
-							Transform missing = stylusGO.collidingWith [0].transform;
-							if (j == missing.GetComponent<BlockInteraction> ().missIndex) {
-								currBlock = missing;
-							}
+				// get the list of blocklayers
+				List<Transform> tower = TowerBuild.blkLayers;
+
+				// in the beginning of the turn, get all the positions
+				//print("FILLING IN TEMP");
+				for (int i = 0; i < tower.Count; i++) {
+					// fill in the perFrame buffer
+					for (int j = 0; j < 3; j++) {
+						Transform currBlock;
+						if (tower [i].childCount == 3 || j < tower [i].childCount) {
+							currBlock = tower [i].GetChild (j);
 						}
-					}
+					// if one block is being held, retrieve that child
+					else if (tower [i].childCount < 3) {
+							currBlock = tower [i].GetChild (0);
+							// retrieve the held block
+							Stylus5 stylusGO = (Stylus5)FindObjectOfType (typeof(Stylus5));
+							if (stylusGO.interactingWith != null) {
+								Transform missing = stylusGO.interactingWith.transform;
+								if (j == missing.GetComponent<BlockInteraction> ().missIndex) {
+									currBlock = missing;
+								}
+							} 
+						} else
+							currBlock = tower [i].GetChild (0);
 
-					perFramePosition.Add (currBlock.position);
-					perFrameQuaternion.Add (currBlock.rotation);
+						Vector3 toAdd = new Vector3 (0f, 0.001f * i, 0f);
+						tempPos.Add (currBlock.position + toAdd);
+						tempRot.Add (currBlock.rotation);
+					}
 				}
+
+
 			}
 
-			currentTurnPositions.Add (perFramePosition);
-			currentTurnQuaternions.Add (perFrameQuaternion);
-
-			replay ();
 		}
+
+		GameObject.FindGameObjectWithTag ("TurnsTaken").GetComponent<UnityEngine.UI.Text> ().text = "Turns taken: " + turnsTaken;
+
 
         if(!gameOver)
             GameObject.FindGameObjectWithTag("PlayerText").GetComponent<UnityEngine.UI.Text>().text = "Player " + playerTurn + "'s turn";
 
         else
-            GameObject.FindGameObjectWithTag("PlayerText").GetComponent<UnityEngine.UI.Text>().text = "YOOOOOOOOOOUUUUUUUUU LOOOOOOOOOSSSST";
+			GameObject.FindGameObjectWithTag("PlayerText").GetComponent<UnityEngine.UI.Text>().text = "Player " + playerTurn + " has lost!";
     }
     
     public static void restart()
@@ -90,91 +116,119 @@ public class GameState : MonoBehaviour {
         playerTurn = 1;
 		currentPlayer = 1;
         gameOver = false;
-
-		perFramePosition = new List<Vector3>();
-		perFrameQuaternion = new List<Quaternion> ();
-
-		lastTurnPositions = new List<List<Vector3>> ();
-		currentTurnPositions = new List<List<Vector3>> ();
-		lastTurnQuaternions = new List<List<Quaternion>> ();
-		currentTurnQuaternions = new List<List<Quaternion>> ();
+		turnsTaken = 0;
+		nextTurn = false;
+		redoTowerPos = new List<Vector3>();
+		redoTowerRot = new List<Quaternion> ();
+		undoTowerPos = new List<Vector3>();
+		undoTowerRot = new List<Quaternion> ();
+		tempPos = new List<Vector3> ();
+		tempRot = new List<Quaternion> ();
     }
 
 	public static void undo() {
-		if (TowerBuild.setUpDone) {
+		if (TowerBuild.setUpDone && undoTowerPos.Count > 1) {
+			// get the list of block layers
 			List<Transform> tower = TowerBuild.blkLayers;
-			playerTurn = (playerTurn == 1) ? 2 : 1;
-			currentPlayer = playerTurn;
-			gameOver = false;
 
-			List<Vector3> firstFramePos = lastTurnPositions [0];
-			List<Quaternion> firstFrameRot = lastTurnQuaternions [0];
+			// if we've already moved one step, we don't have to do anything
+			if (!recentlyUndo) {
+				// modify playerTurn, turnsTaken, currentPlayer, and recentlyUndo
+				playerTurn = (playerTurn == 1 && Numbers.numPlayers == 2) ? 2 : 1;
+				turnsTaken--;
+				//if (gameOver)
+				//	turnsTaken--;
+				currentPlayer = playerTurn;
+				recentlyRedo = false;
+				recentlyUndo = true;
+			}
+
+			// we shouldn't be in game over after an undo
+			gameOver = false;
+			GroundCollide.gameOver = false;
+
+			// fill in the redo section
+			for (int i = 0; i < tower.Count; i++) {
+				// fill in the perFrame buffer
+				for (int j = 0; j < 3; j++) {
+					Transform currBlock;
+					if (tower [i].childCount == 3 || j < tower [i].childCount) {
+						currBlock = tower [i].GetChild (j);
+					}
+					// if one block is being held, retrieve that child
+					else if (tower [i].childCount < 3) {
+						currBlock = tower [i].GetChild (0);
+						// retrieve the held block
+						Stylus5 stylusGO = (Stylus5)FindObjectOfType (typeof(Stylus5));
+						if (stylusGO.interactingWith != null) {
+							Transform missing = stylusGO.interactingWith.transform;
+							if (j == missing.GetComponent<BlockInteraction> ().missIndex) {
+								currBlock = missing;
+							}
+						} 
+					} else
+						currBlock = tower [i].GetChild (0);
+
+					Vector3 toAdd = new Vector3 (0f, 0.001f * i, 0f);
+					redoTowerPos.Add (currBlock.position + toAdd);
+					redoTowerRot.Add (currBlock.rotation);
+				}
+			}
 
 			// reset the whole tower to the last turn
 			for (int i = 0; i < tower.Count; i++) {
 				for (int j = 0; j < 3; j++) {
 					Transform block = tower [i].GetChild (j);
-					block.position = firstFramePos [(i * 3) + j];
-					block.rotation = firstFrameRot [(i * 3) + j];
+					block.position = undoTowerPos [(i * 3) + j];
+					block.rotation = undoTowerRot [(i * 3) + j];
 				}
 			}
+			if (GroundCollide.lastRemovedBlock.GetComponent<BlockState> ().hitTheGround) {
+				GroundCollide.lastRemovedBlock.GetComponent<BlockState> ().undoed = true;
+			}
+			GroundCollide.lastRemovedBlock.GetComponent<BlockState> ().hitTheGround = false;
 
-			// reset the lists
-			perFramePosition = new List<Vector3> ();
-			perFrameQuaternion = new List<Quaternion> ();
-
-			lastTurnPositions = new List<List<Vector3>> ();
-			currentTurnPositions = new List<List<Vector3>> ();
-			lastTurnQuaternions = new List<List<Quaternion>> ();
-			currentTurnQuaternions = new List<List<Quaternion>> ();
-		} 
+		}
 		else {
 			print ("undo failed");
 		}
 	}
 
-
-	public static void replay() {
-		// first order of business is to restrict any commands or interactions during a replay
-		if (!replayOn && lastTurnPositions.Count != 0) {  //////////////////// TODO: Add a condition for a boolean set to true and false by the replay widget (immediately set to false after)
-			replayOn = true;
-			replayFrameNum = 0;
-		}
-
-		// next is to load the list of frames' data and then move it every frame (external counter)
-		if (replayOn && lastTurnPositions.Count != 0) {
-			List<Vector3> pos = lastTurnPositions [replayFrameNum];
-			List<Quaternion> rot = lastTurnQuaternions [replayFrameNum];
+	public static void redo() {
+		if (TowerBuild.setUpDone && redoTowerPos.Count > 1) {
+			// get the list of block layers
 			List<Transform> tower = TowerBuild.blkLayers;
 
+			// if we've already moved one step, we don't have to do anything
+			if (!recentlyRedo) {
+				// modify playerTurn, turnsTaken, currentPlayer, and recentlyUndo
+				playerTurn = (playerTurn == 1 && Numbers.numPlayers == 2) ? 2 : 1;
+				turnsTaken++;
+				currentPlayer = playerTurn;
+				recentlyRedo = true;
+				recentlyUndo = false;
+			}
+
+			// we shouldn't be in game over after an undo
+			gameOver = false;
+			GroundCollide.gameOver = false;
+
+			// reset the whole tower to the other last turn
 			for (int i = 0; i < tower.Count; i++) {
 				for (int j = 0; j < 3; j++) {
 					Transform block = tower [i].GetChild (j);
-					block.position = pos [(i * 3) + j];
-					block.rotation = rot [(i * 3) + j];
+					block.position = redoTowerPos [(i * 3) + j];
+					block.rotation = redoTowerRot [(i * 3) + j];
 				}
 			}
-
-			replayFrameNum++;
-		}
-
-		// last is to resume play after the tower has been returned to before the replay
-		if (replayOn && replayFrameNum >= lastTurnPositions.Count && lastTurnPositions.Count != 0) {
-			replayOn = false;
-
-			// resume from latest currentTurn values
-			List<Vector3> pos = currentTurnPositions [currentTurnPositions.Count - 1];
-			List<Quaternion> rot = currentTurnQuaternions [currentTurnQuaternions.Count - 1];
-			List<Transform> tower = TowerBuild.blkLayers;
-
-			for (int i = 0; i < tower.Count; i++) {
-				for (int j = 0; j < 3; j++) {
-					Transform block = tower [i].GetChild (j);
-					block.position = pos [(i * 3) + j];
-					block.rotation = rot [(i * 3) + j];
-				}
+			if (GroundCollide.lastRemovedBlock.GetComponent<BlockState> ().undoed) {
+				GroundCollide.lastRemovedBlock.GetComponent<BlockState> ().hitTheGround = true;
 			}
 
+		} 
+		else {
+			print ("redo failed");
 		}
 	}
+
 }

@@ -9,7 +9,7 @@ public class GroundCollide : MonoBehaviour {
     float distThreshold;
     static bool check2ndCollision;
     public static GameObject lastRemovedBlock;
-    static bool gameOver;
+    public static bool gameOver;
 
 	// Use this for initialization
 	void Start () {
@@ -22,10 +22,16 @@ public class GroundCollide : MonoBehaviour {
     // Update is called once per frame
     void Update()
     {
-        if (!startTimer)
-        {
-            timeStart = Time.time;
-        }
+		if (!startTimer) {
+			timeStart = Time.time;
+			GameObject.FindGameObjectWithTag("TurnTimer").GetComponent<UnityEngine.UI.Text> ().text = "";
+		} 
+		else {
+			if(!gameOver)
+				GameObject.FindGameObjectWithTag("TurnTimer").GetComponent<UnityEngine.UI.Text> ().text = "Next turn in " + (3.0f - (Time.time - timeStart));
+			else
+				GameObject.FindGameObjectWithTag("TurnTimer").GetComponent<UnityEngine.UI.Text> ().text = "";
+		}
 
         // next turn
         if (Time.time - timeStart > 3.0 && !gameOver)
@@ -36,12 +42,17 @@ public class GroundCollide : MonoBehaviour {
             // if two players, change the prompter
             if(Numbers.numPlayers == 2)
             {
-                GameState.playerTurn = (GameState.playerTurn == 1) ? 2 : 1;
+                GameState.playerTurn = (GameState.playerTurn == 2) ? 1 : 2;
             }
+			else
+				GameState.nextTurn = true;
         }
         else if(gameOver)
         {
-            GameState.gameOver = true;
+			if (!GameState.gameOver) {
+				GameState.nextTurn = true;
+				GameState.gameOver = true;
+			}
         }
     }
 
@@ -54,12 +65,20 @@ public class GroundCollide : MonoBehaviour {
 			BlockState bState = g.GetComponent<BlockState> ();
 			if (!bState.hitTheGround) {
 				bState.hitTheGround = true;
-				print (bState.hitTheGround);
+				print (bState.hitTheGround + " " + g.name + " has hit the ground");
 				lastRemovedBlock = g;
 				// g.SetActive(false);
 				startTimer = true;
 				// if yes...
-				// TODO: check if player holding block
+				// check if player holding block
+				Stylus5 stylusGO = (Stylus5)FindObjectOfType (typeof(Stylus5));
+				if (stylusGO.interactingWith != null) {
+					Transform heldBlock = stylusGO.interactingWith.transform;
+					if (heldBlock == null) {
+						// fail game
+						gameOver = true;
+					}
+				} 
 
 				// check if another block hits ground in next 5 seconds
 				if (Time.time - timeStart < 5.0 && check2ndCollision) {
@@ -80,9 +99,8 @@ public class GroundCollide : MonoBehaviour {
 					topX = topLayer.GetChild (0);
 					topY = topLayer.GetChild (1);
 
-					Stylus5 stylusGO = (Stylus5)FindObjectOfType(typeof(Stylus5));
-					if (stylusGO.collidingWith.Count == 1) {
-						topZ = stylusGO.collidingWith [0].transform;
+					if (stylusGO.interactingWith != null) {
+						topZ = stylusGO.interactingWith.transform;
 					} else
 						topZ = topLayer.GetChild (1);
 				}

@@ -15,7 +15,7 @@ public class Stylus5 : MonoBehaviour
 	private ZSCore.TrackerTargetType _targetType = ZSCore.TrackerTargetType.Primary;
 	
 	public List<GameObject> collidingWith; 
-	GameObject interactingWith;
+	public GameObject interactingWith;
 	
 	protected void Start ()
 	{
@@ -38,7 +38,7 @@ public class Stylus5 : MonoBehaviour
 				}
 
 				if (collidingWith.Count == 1) {
-					if (interactingWith == null) {
+					if (interactingWith == null && !GameState.replayOn) {
 						interactingWith = collidingWith [0];
 					}
 				}
@@ -59,8 +59,10 @@ public class Stylus5 : MonoBehaviour
 			interactingWith.GetComponent<Interact> ().penRot = transform.rotation;
 		} else if (interactingWith != null) {
 			interactingWith.GetComponent<Interact> ().interact = false;
-			interactingWith.GetComponent<Rigidbody>().useGravity = true;
-			interactingWith.transform.SetParent (interactingWith.GetComponent<BlockInteraction> ().lastParent);
+			if(interactingWith.layer == 8) {
+				interactingWith.GetComponent<Rigidbody>().useGravity = true;   /// can't use with widgets
+				interactingWith.transform.SetParent (interactingWith.GetComponent<BlockInteraction> ().lastParent); //// can't use with widgets
+			}
 			interactingWith = null;
 		} else if (!_zsCore.IsTrackerTargetButtonPressed (ZSCore.TrackerTargetType.Primary, 0)) {
 			// loop through pen's children and reset them
@@ -75,6 +77,10 @@ public class Stylus5 : MonoBehaviour
 		                                  pose.m23 + initialPosition.z);
 		transform.rotation = Quaternion.LookRotation(pose.GetColumn(2), pose.GetColumn(1))
 			* initialRotation;
+	}
+
+	public bool checkInteract() {
+		return (interactingWith == null) ? false : true;
 	}
 }
 
